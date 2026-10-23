@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { db } from "@/lib/store";
+import { clearGrants, db } from "@/lib/store";
 import { clientSessions } from "@/lib/client-session";
 import { ISSUER } from "@/lib/keys";
 
@@ -7,7 +7,7 @@ import { ISSUER } from "@/lib/keys";
 // holding tokens from a grant that no longer exists.
 export async function POST() {
   db.codes.clear(); db.refresh.clear(); db.authRequests.clear();
-  db.revokedFamilies.clear(); db.grants = []; db.sessions.clear();
+  db.revokedFamilies.clear(); clearGrants(); db.sessions.clear();
   db.traces.length = 0; db.seq = 0;
 
   clientSessions.clear();

@@ -1,10 +1,10 @@
 import { cookies } from "next/headers";
-import { db, findClient } from "@/lib/store";
+import { db, findClient, grantsFor } from "@/lib/store";
 
 export default async function Account() {
   const sid = (await cookies()).get("op_session")?.value;
   const userId = sid ? db.sessions.get(sid) : undefined;
-  const grants = db.grants.filter((g) => g.user_id === userId);
+  const grants = grantsFor(userId ?? "");
 
   return (
     <div className="card narrow">
