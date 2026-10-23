@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { db, rid, trace } from "@/lib/store";
+import { db, findUserByEmail, rid, trace, verifyPassword } from "@/lib/store";
 import { nextStep } from "@/lib/authorize";
 import { ISSUER } from "@/lib/keys";
 
@@ -10,8 +10,8 @@ export async function POST(req: Request) {
   const password = String(form.get("password") ?? "");
   const reqId = String(form.get("req") ?? "");
 
-  const user = db.users.find((u) => u.email === email && u.password === password);
-  if (!user) {
+  const user = findUserByEmail(email);
+  if (!user || !(await verifyPassword(user, password))) {
     trace({ channel: "internal", actor: "provider", method: "POST", path: "/login",
       note: "Login failed. This is OUR auth, not OAuth's — password, passkey, MFA, your choice." });
     return Response.redirect(ISSUER + "/login?req=" + reqId + "&error=1", 302);

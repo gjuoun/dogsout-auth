@@ -42,6 +42,7 @@ async function codeGrant(form: Record<string, string>, client_id: string) {
   }
 
   c.used = true;
+  db.codes.set(c.code, c); // persist the burned flag — codes are one-time, forever
   trace({ channel: "back", actor: "client", method: "POST", path: "/oauth/token",
     note: "Code + PKCE verifier accepted. Code burned. Issuing tokens.",
     detail: { scope: c.scope.join(" ") } });
@@ -64,6 +65,7 @@ async function refreshGrant(form: Record<string, string>, client_id: string) {
   }
 
   t.revoked = true; // rotate: old one dies the moment a new one is issued
+  db.refresh.set(t.token, t);
   trace({ channel: "back", actor: "client", method: "POST", path: "/oauth/token",
     note: "Refresh accepted. Rotating: old token invalidated, new one issued." });
   return issue(t.user_id, t.client_id, t.scope, undefined, t.family);
