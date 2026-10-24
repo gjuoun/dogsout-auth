@@ -1,4 +1,12 @@
-# june-oauth
+# dogsout-auth
+
+**A dedicated, professional OAuth server** (formerly june-oauth) — the OAuth 2.0 / OIDC
+provider of the dogsout agent-fleet auth stack: hand-written protocol core
+(PKCE, refresh rotation, JWKS, passkeys), Next.js 16, no auth framework.
+
+Sister repo: [dogsout](https://github.com/gjuoun/dogsout) — the CLI secret vault,
+policy matrix, and approval UI. This repo stays a standalone OAuth server, not a
+sub-module to be absorbed.
 
 **Build your own OAuth provider.**
 
