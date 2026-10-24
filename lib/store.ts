@@ -8,6 +8,7 @@ import { argon2Verify } from "hash-wasm";
 export type User = {
   id: string;
   email: string;
+  username: string;
   password_hash: string;
   name: string;
   picture: string;
@@ -18,6 +19,9 @@ export type Client = {
   name: string;
   redirect_uris: string[];   // EXACT match. No wildcards. Ever.
   scopes: string[];
+  kind: "demo" | "agent";    // agents are machine clients from the registry
+  owner_user_id?: string;
+  created_at?: number;
 };
 export type AuthRequest = {
   id: string;
@@ -165,35 +169,103 @@ export const db = {
 
 // ---------------------------------------------------------------- users & clients
 
+const CLIENT_COLS =
+  "client_id, client_secret, name, redirect_uris, scopes, kind, owner_user_id, created_at";
+
+function rowToClient(row: Record<string, unknown>): Client {
+  return {
+    client_id: row.client_id as string,
+    client_secret: row.client_secret as string,
+    name: row.name as string,
+    redirect_uris: JSON.parse(row.redirect_uris as string),
+    scopes: JSON.parse(row.scopes as string),
+    kind: (row.kind as Client["kind"]) ?? "demo",
+    owner_user_id: (row.owner_user_id as string | null) ?? undefined,
+    created_at: row.created_at as number | undefined,
+  };
+}
+
 export function findClient(id: string | null): Client | null {
   if (!id) return null;
   const row = getDb()
-    .prepare("SELECT client_id, client_secret, name, redirect_uris, scopes FROM clients WHERE client_id = ?")
-    .get(id) as
-    | { client_id: string; client_secret: string; name: string; redirect_uris: string; scopes: string }
-    | undefined;
-  if (!row) return null;
-  return {
-    client_id: row.client_id,
-    client_secret: row.client_secret,
-    name: row.name,
-    redirect_uris: JSON.parse(row.redirect_uris),
-    scopes: JSON.parse(row.scopes),
-  };
+    .prepare(`SELECT ${CLIENT_COLS} FROM clients WHERE client_id = ?`)
+    .get(id) as Record<string, unknown> | undefined;
+  return row ? rowToClient(row) : null;
+}
+
+export function listClients(): Client[] {
+  const rows = getDb()
+    .prepare(`SELECT ${CLIENT_COLS} FROM clients ORDER BY created_at, client_id`)
+    .all() as Record<string, unknown>[];
+  return rows.map(rowToClient);
+}
+
+/** Register an agent (machine client). The secret is returned ONCE — callers show it, never store it in the clear anywhere else. */
+export function createAgent(opts: {
+  name: string;
+  redirect_uris: string[];
+  scopes: string[];
+  owner_user_id: string;
+}): { client_id: string; client_secret: string } {
+  const client_id = rid("agent");
+  const client_secret = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, "");
+  getDb()
+    .prepare(
+      `INSERT INTO clients (client_id, client_secret, name, redirect_uris, scopes, kind, owner_user_id, created_at)
+       VALUES (?, ?, ?, ?, ?, 'agent', ?, ?)`,
+    )
+    .run(
+      client_id,
+      client_secret,
+      opts.name,
+      JSON.stringify(opts.redirect_uris),
+      JSON.stringify(opts.scopes),
+      opts.owner_user_id,
+      Date.now(),
+    );
+  return { client_id, client_secret };
+}
+
+/** Drop a client and everything granted to it. Demo clients (the teaching app) are protected. */
+export function deleteClient(client_id: string) {
+  const c = findClient(client_id);
+  if (!c || c.kind === "demo") return;
+  getDb().prepare("DELETE FROM clients WHERE client_id = ?").run(client_id);
+  getDb().prepare("DELETE FROM grants WHERE client_id = ?").run(client_id);
+  for (const [k, t] of db.refresh)
+    if (t.client_id === client_id) { t.revoked = true; db.refresh.set(k, t); }
 }
 
 export function findUser(id: string): User | null {
   const row = getDb()
-    .prepare("SELECT id, email, password_hash, name, picture FROM users WHERE id = ?")
+    .prepare("SELECT id, email, username, password_hash, name, picture FROM users WHERE id = ?")
     .get(id) as User | undefined;
   return row ?? null;
 }
 
 export function findUserByEmail(email: string): User | null {
   const row = getDb()
-    .prepare("SELECT id, email, password_hash, name, picture FROM users WHERE email = ?")
+    .prepare("SELECT id, email, username, password_hash, name, picture FROM users WHERE email = ?")
     .get(email) as User | undefined;
   return row ?? null;
+}
+
+/**
+ * Resolve the human for a username-first login. Case-insensitive; a username
+ * match wins, with the email as a tolerant fallback.
+ */
+export function findUserByUsername(username: string): User | null {
+  const q = username.trim().toLowerCase();
+  if (!q) return null;
+  const cols = "id, email, username, password_hash, name, picture";
+  const byName = getDb()
+    .prepare(`SELECT ${cols} FROM users WHERE lower(username) = ?`)
+    .get(q) as User | undefined;
+  if (byName) return byName;
+  const byEmail = getDb()
+    .prepare(`SELECT ${cols} FROM users WHERE lower(email) = ?`)
+    .get(q) as User | undefined;
+  return byEmail ?? null;
 }
 
 /** argon2id verification against the stored hash. */
@@ -203,6 +275,79 @@ export async function verifyPassword(user: User, password: string): Promise<bool
   } catch {
     return false;
   }
+}
+
+// ---------------------------------------------------------------- passkeys (webauthn)
+
+export type Passkey = {
+  credential_id: string;
+  user_id: string;
+  counter: number;
+  transports?: string[];
+  backed_up?: boolean;
+  name?: string;
+  created_at?: number;
+};
+
+export function listPasskeys(user_id: string): Passkey[] {
+  const rows = getDb()
+    .prepare(
+      "SELECT credential_id, user_id, counter, transports, backed_up, name, created_at FROM webauthn_credentials WHERE user_id = ? ORDER BY created_at",
+    )
+    .all(user_id) as Record<string, unknown>[];
+  return rows.map((r) => ({
+    credential_id: r.credential_id as string,
+    user_id: r.user_id as string,
+    counter: r.counter as number,
+    transports: r.transports ? JSON.parse(r.transports as string) : undefined,
+    backed_up: !!r.backed_up,
+    name: (r.name as string | null) ?? undefined,
+    created_at: (r.created_at as number | null) ?? undefined,
+  }));
+}
+
+export function savePasskey(p: {
+  credential_id: string;
+  user_id: string;
+  public_key: string; // base64
+  counter: number;
+  transports?: string[];
+  backed_up: boolean;
+  name: string;
+}) {
+  getDb()
+    .prepare(
+      `INSERT INTO webauthn_credentials (credential_id, user_id, public_key, counter, transports, backed_up, name, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(credential_id) DO UPDATE SET counter = excluded.counter, transports = excluded.transports, backed_up = excluded.backed_up`,
+    )
+    .run(
+      p.credential_id,
+      p.user_id,
+      p.public_key,
+      p.counter,
+      p.transports ? JSON.stringify(p.transports) : null,
+      p.backed_up ? 1 : 0,
+      p.name,
+      Date.now(),
+    );
+}
+
+export function findPasskey(credential_id: string): { user_id: string; public_key: string; counter: number } | null {
+  const row = getDb()
+    .prepare("SELECT user_id, public_key, counter FROM webauthn_credentials WHERE credential_id = ?")
+    .get(credential_id) as { user_id: string; public_key: string; counter: number } | undefined;
+  return row ?? null;
+}
+
+export function updatePasskeyCounter(credential_id: string, counter: number) {
+  getDb()
+    .prepare("UPDATE webauthn_credentials SET counter = ? WHERE credential_id = ?")
+    .run(counter, credential_id);
+}
+
+export function deletePasskey(credential_id: string) {
+  getDb().prepare("DELETE FROM webauthn_credentials WHERE credential_id = ?").run(credential_id);
 }
 
 // ---------------------------------------------------------------- grants

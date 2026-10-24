@@ -19,7 +19,7 @@ bun run dev                 # http://localhost:3000
 ```
 
 Then open <http://localhost:3000/client> and click **Sign in with YourID**.
-Demo user: `jun@example.com` / `hunter2`
+Sign in as the username `jun` with a passkey — the first sign-in registers one.
 
 > Use `bun run build && bun run start` for the production server. The e2e suite
 > needs it — Turbopack's HMR reload-loops under browser automation.
@@ -109,7 +109,7 @@ reissues every token, and four attack simulations that must fail.
 
 Deliberately simplified for teaching:
 
-- In-memory store, plaintext demo password, keys regenerated on boot.
+- A single seeded human and client; the signing key persists in SQLite.
 - No key rotation, client registration portal, or rate limiting.
 - One hard-coded client and user.
 

@@ -22,6 +22,7 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
+    username TEXT,
     password_hash TEXT NOT NULL,
     name TEXT NOT NULL,
     picture TEXT NOT NULL
@@ -31,7 +32,20 @@ const SCHEMA = `
     client_secret TEXT NOT NULL,
     name TEXT NOT NULL,
     redirect_uris TEXT NOT NULL,
-    scopes TEXT NOT NULL
+    scopes TEXT NOT NULL,
+    kind TEXT NOT NULL DEFAULT 'demo',
+    owner_user_id TEXT,
+    created_at INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE TABLE IF NOT EXISTS webauthn_credentials (
+    credential_id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    public_key TEXT NOT NULL,
+    counter INTEGER NOT NULL DEFAULT 0,
+    transports TEXT,
+    backed_up INTEGER NOT NULL DEFAULT 0,
+    name TEXT,
+    created_at INTEGER NOT NULL DEFAULT 0
   );
   CREATE TABLE IF NOT EXISTS sessions (
     sid TEXT PRIMARY KEY,
@@ -80,19 +94,34 @@ export function getDb(): Database.Database {
 
 function seed(db: Database.Database) {
   const ORIGIN = process.env.ISSUER ?? "http://localhost:3000";
+
+  // Older databases predate `username` (): add the column and derive it
+  // from the email local part, so username-first login resolves existing humans.
+  try {
+    db.exec("ALTER TABLE users ADD COLUMN username TEXT");
+  } catch {}
+  db.exec(
+    "UPDATE users SET username = lower(substr(email, 1, instr(email, '@') - 1)) " +
+      "WHERE (username IS NULL OR username = '') AND instr(email, '@') > 0",
+  );
+  try {
+    db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)");
+  } catch {}
+
   db.prepare(
-    `INSERT OR IGNORE INTO users (id, email, password_hash, name, picture)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT OR IGNORE INTO users (id, email, username, password_hash, name, picture)
+     VALUES (?, ?, ?, ?, ?, ?)`,
   ).run(
     "u_1001",
     "jun@example.com",
+    "jun",
     DEMO_PASSWORD_HASH,
     "Jun Guo",
     "https://api.dicebear.com/9.x/initials/svg?seed=Jun",
   );
   db.prepare(
-    `INSERT OR IGNORE INTO clients (client_id, client_secret, name, redirect_uris, scopes)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT OR IGNORE INTO clients (client_id, client_secret, name, redirect_uris, scopes, kind)
+     VALUES (?, ?, ?, ?, ?, 'demo')`,
   ).run(
     "demo-client",
     "demo-secret-do-not-ship",
@@ -100,6 +129,16 @@ function seed(db: Database.Database) {
     JSON.stringify([ORIGIN + "/client/callback"]),
     JSON.stringify(["openid", "profile", "email", "notes:read"]),
   );
+  // Older databases predate the kind/owner columns.
+  try {
+    db.exec("ALTER TABLE clients ADD COLUMN kind TEXT NOT NULL DEFAULT 'demo'");
+  } catch {}
+  try {
+    db.exec("ALTER TABLE clients ADD COLUMN owner_user_id TEXT");
+  } catch {}
+  try {
+    db.exec("ALTER TABLE clients ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0");
+  } catch {}
 }
 
 /** Key-value store for durable singletons (today: the signing key). */

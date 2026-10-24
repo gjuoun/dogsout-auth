@@ -8,8 +8,30 @@ const ok = (c, m) => console.log(`${c ? "PASS" : "FAIL"}  ${m}`);
 let failures = 0;
 const check = (c, m) => { if (!c) failures++; ok(c, m); };
 
-const browser = await chromium.launch();
+// WebAuthn needs a secure context. localhost already is one; this allow-lists the origin so
+// the same script can also be pointed at a plain-http LAN origin (test-only flag).
+const base = process.env.BASE ?? "http://localhost:3100";
+const origin = base.replace(/\/$/, "");
+const browser = await chromium.launch({
+  args: [`--unsafely-treat-insecure-origin-as-secure=${origin}`],
+});
 const page = await browser.newPage();
+
+// A virtual authenticator from the start: Phase 2 now registers the first
+// passkey, so the ceremony needs one installed before the first login.
+const cdp = await page.context().newCDPSession(page);
+await cdp.send("WebAuthn.enable");
+const addVirtualAuthenticator = async () => {
+  const { authenticatorId } = await cdp.send("WebAuthn.addVirtualAuthenticator", {
+    options: {
+      protocol: "ctap2", transport: "internal",
+      hasResidentKey: true, hasUserVerification: true, isUserVerified: true,
+      automaticPresenceSimulation: true,
+    },
+  });
+  return authenticatorId;
+};
+let authenticatorId = await addVirtualAuthenticator();
 
 console.log("\n--- Phase 1: discovery + keys");
 const disco = await (await page.request.get(B + "/.well-known/openid-configuration")).json();
@@ -18,7 +40,7 @@ check(disco.code_challenge_methods_supported.includes("S256"), "discovery advert
 const jwks = await (await page.request.get(B + "/.well-known/jwks.json")).json();
 check(jwks.keys.length === 1 && !("d" in jwks.keys[0]), "JWKS exposes public key only (no private 'd')");
 
-console.log("\n--- Phase 2: authorization code + PKCE through the browser");
+console.log("\n--- Phase 2: authorization code + PKCE through the browser (first login registers a passkey)");
 // Clear any prior session/grant so the suite is self-contained and always
 // exercises the login + consent screens.
 await page.goto(B + "/");
@@ -28,11 +50,11 @@ await page.click("text=Sign in with YourID");
 await page.waitForURL("**/login**");
 check(page.url().includes("/login"), "unauthenticated /authorize redirects to the provider's login");
 
-await page.fill('input[name="email"]', "jun@example.com");
-await page.fill('input[name="password"]', "hunter2");
+// Username-first: a human with no passkey yet is walked straight into create().
+await page.fill('input[name="username"]', "jun");
 await page.click('button[type="submit"]');
 await page.waitForURL("**/consent**");
-check(page.url().includes("/consent"), "after login the consent screen appears");
+check(page.url().includes("/consent"), "first login (username -> create) registers a passkey and lands on consent");
 check(await page.locator("text=See your email address").isVisible(), "consent lists scopes in human language");
 
 await page.click('button[value="allow"]');
@@ -84,6 +106,63 @@ check(noPkce.status() === 400, "authorize without PKCE is rejected");
 const badToken = await page.request.get(B + "/oauth/userinfo", {
   headers: { authorization: "Bearer not.a.real.token" }, failOnStatusCode: false });
 check(badToken.status() === 401, "/userinfo rejects a forged bearer token");
+
+console.log("\n--- Phase 6: passkey enrollment + returning username + passkey login (virtual authenticator)");
+// Enroll a second passkey while signed in (session from Phase 2). A create()
+// ceremony excludes the credentials the human already holds, and the
+// authenticator that owns them refuses to re-register ("previously registered"),
+// so swap in a fresh virtual authenticator (same CDP session) for this ceremony.
+await cdp.send("WebAuthn.removeVirtualAuthenticator", { authenticatorId });
+authenticatorId = await addVirtualAuthenticator();
+await page.goto(B + "/account");
+await page.click("text=Add a passkey");
+await page.waitForURL("**/account?passkey=added");
+check(await page.locator("text=Passkey added.").isVisible(), "passkey enrollment succeeds and lists on /account");
+check((await page.locator(".grant", { hasText: "passkey" }).count()) >= 1, "the enrolled passkey appears in the list");
+
+// Wipe the session (and grants) — passkeys survive, they are the human's credentials.
+await page.goto(B + "/");
+await page.click("text=Reset all demo state");
+await page.goto(B + "/client");
+await page.click("text=Sign in with YourID");
+await page.waitForURL("**/login**");
+check(await page.locator('input[name="username"]').isVisible(), "login asks for a username");
+check(await page.locator('input[name="password"]').count() === 0, "the login page has no password input");
+
+await page.fill('input[name="username"]', "jun");
+await page.click('button[type="submit"]');
+await page.waitForURL("**/consent**");
+check(page.url().includes("/consent"), "username + passkey assertion signs the user in (no password) and reaches consent");
+await page.click('button[value="allow"]');
+await page.waitForURL("**/client");
+check((await page.textContent("body")).includes("access_token"), "the full OAuth flow completes on username + passkey alone");
+
+console.log("\n--- Phase 7: agent registry");
+await page.goto(B + "/admin");
+await page.fill('input[name="name"]', "e2e-agent");
+await page.fill('textarea[name="redirect_uris"]', B + "/client/callback");
+await page.click('button[type="submit"]');
+await page.waitForURL("**/admin?created=**");
+const secretShown = await page.locator("text=shown ONCE").isVisible();
+check(secretShown, "agent creation shows the secret exactly once");
+const agentId = page.url().match(/created=(agent_[a-f0-9]+)/)?.[1] ?? "";
+check(agentId.startsWith("agent_"), "the created agent got an agent_* client_id");
+check((await page.locator(".grant", { hasText: "e2e-agent" }).count()) === 1, "the agent appears in the registry");
+
+// The agent is a real OAuth client: authorize must accept its client_id + redirect.
+const agentAuth = B + "/oauth/authorize?response_type=code&client_id=" + agentId +
+  "&redirect_uri=" + encodeURIComponent(B + "/client/callback") +
+  "&scope=openid&state=x&code_challenge=abc&code_challenge_method=S256";
+await page.goto(agentAuth);
+await page.waitForURL("**/consent**");
+check(page.url().includes("/consent"), "authorize accepts the registered agent and reaches consent (session + no grant)");
+
+await page.goto(B + "/admin");
+await page.locator(".grant", { hasText: agentId }).locator("button.danger").click();
+await page.waitForURL("**/admin");
+check((await page.locator(".grant", { hasText: "e2e-agent" }).count()) === 0, "revoking removes the agent from the registry");
+const gone = await page.request.get(agentAuth, { failOnStatusCode: false });
+check(gone.status() === 400, "authorize rejects the revoked agent (unknown client_id)");
 
 await browser.close();
 console.log(failures === 0 ? "\nALL CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
