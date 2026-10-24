@@ -15,6 +15,13 @@ export async function POST(req: Request) {
     .split(/\s*\n\s*/)
     .map((s) => s.trim())
     .filter((s) => /^https?:\/\//.test(s));
+  // A machine client lives off non-OIDC scopes (client_credentials has no subject),
+  // so the registry takes them from the form — defaulting to the user-grant trio.
+  const scopes = String(form.get("scopes") ?? "")
+    .split(/[\s,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   if (!name || redirect_uris.length === 0) {
     return Response.redirect(ISSUER + "/admin?error=invalid", 302);
   }
@@ -22,7 +29,7 @@ export async function POST(req: Request) {
   const { client_id, client_secret } = createAgent({
     name,
     redirect_uris,
-    scopes: ["openid", "profile", "email"],
+    scopes: scopes.length ? scopes : ["openid", "profile", "email"],
     owner_user_id: userId,
   });
 

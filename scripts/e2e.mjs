@@ -164,6 +164,52 @@ check((await page.locator(".grant", { hasText: "e2e-agent" }).count()) === 0, "r
 const gone = await page.request.get(agentAuth, { failOnStatusCode: false });
 check(gone.status() === 400, "authorize rejects the revoked agent (unknown client_id)");
 
+console.log("\n--- Phase 8: machine credentials (client_credentials + introspection)");
+// An agent acts as itself: it authenticates with its own secret and gets a token
+// whose subject IS the client. No user, no refresh token, no id_token.
+await page.goto(B + "/admin");
+await page.fill('input[name="name"]', "e2e-machine");
+await page.fill('textarea[name="redirect_uris"]', B + "/client/callback");
+await page.fill('textarea[name="scopes"]', "notes:read");
+await page.click('button[type="submit"]');
+await page.waitForURL("**/admin?created=**");
+const machineId = page.url().match(/created=(agent_[a-f0-9]+)/)?.[1] ?? "";
+const machineSecret = ((await page.locator(".grant pre.json").first().textContent()) ?? "").trim();
+check(machineId.startsWith("agent_") && machineSecret.length > 20,
+  "a machine agent is registered with a resource scope and a show-once secret");
+
+const machineBasic = "Basic " + Buffer.from(`${machineId}:${machineSecret}`).toString("base64");
+const tokenRes = await page.request.post(B + "/oauth/token", {
+  form: { grant_type: "client_credentials", scope: "notes:read" },
+  headers: { authorization: machineBasic },
+});
+const machine = await tokenRes.json();
+check(tokenRes.status() === 200 && typeof machine.access_token === "string",
+  "client_credentials mints a Bearer token from Basic credentials");
+check(machine.refresh_token === undefined && machine.id_token === undefined,
+  "the machine grant issues no refresh_token and no id_token");
+
+const introspect = (token, headers = { authorization: machineBasic }) =>
+  page.request.post(B + "/oauth/introspect", { form: { token }, headers });
+const live = await (await introspect(machine.access_token)).json();
+check(live.active === true && live.sub === machineId && live.scope === "notes:read" && live.aud === "notes-api",
+  "introspection reports the token active, subject = the agent, aud from the scope");
+const dead = await (await introspect(machine.access_token.slice(0, -6) + "AAAAAA")).json();
+check(dead.active === false && Object.keys(dead).length === 1,
+  "a tampered machine token introspects as a bare {active:false}");
+const anon = await page.request.post(B + "/oauth/introspect", { form: { token: machine.access_token } });
+check(anon.status() === 401, "introspection without client credentials is refused");
+const oidcScope = await page.request.post(B + "/oauth/token", {
+  form: { grant_type: "client_credentials", scope: "openid" },
+  headers: { authorization: machineBasic },
+});
+check(oidcScope.status() === 400 && (await oidcScope.json()).error === "invalid_scope",
+  "a machine grant may not ask for openid — there is no subject");
+
+const machineDisco = await (await page.request.get(B + "/.well-known/openid-configuration")).json();
+check(machineDisco.grant_types_supported.includes("client_credentials") && !!machineDisco.introspection_endpoint,
+  "discovery advertises the machine grant and the introspection endpoint");
+
 await browser.close();
 console.log(failures === 0 ? "\nALL CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);
