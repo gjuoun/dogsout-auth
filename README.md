@@ -74,6 +74,33 @@ The entire protocol is shaped so that **the token never travels through the brow
 | `id_token` | 15 min | signed JWT answering *who is this user*; `aud: <client_id>` |
 | `refresh_token` | 30 days, rotating | gets new tokens silently |
 
+## Machine-to-machine — an agent has no user
+
+An agent is a client that acts **as itself**. Two RFCs cover it, and neither involves a
+browser, a consent screen, or a user:
+
+| What | Endpoint | Answers |
+|---|---|---|
+| **RFC 6749 §4.4** | `POST /oauth/token`, `grant_type=client_credentials` | a signed `access_token` whose `sub` **is the client**, `aud` derived from the scope — and deliberately **no** `refresh_token` (§4.4.3), **no** `id_token` (nobody to describe) |
+| **RFC 7662** | `POST /oauth/introspect` | `{"active": false}` for anything it cannot vouch for; the full claims (`sub`, `client_id`, `scope`, `aud`, `iat`, `exp`, `jti`) for a live token |
+
+Both authenticate the client with `client_id` + `client_secret`, sent as
+`Authorization: Basic` **or** in the form body — never both (RFC 6749 §2.3). Register an agent
+at `/admin` with a resource scope such as `notes:read`, then:
+
+```bash
+curl -u "<client_id>:<client_secret>" \
+  -d 'grant_type=client_credentials&scope=notes:read' \
+  http://localhost:3000/oauth/token
+
+curl -u "<client_id>:<client_secret>" -d "token=<access_token>" \
+  http://localhost:3000/oauth/introspect
+```
+
+Introspection only answers about the caller's **own** tokens, and an unexpired token cannot be
+revoked yet — that is M3b, and `lib/introspect.ts#isTokenRevoked` is the single seam it plugs
+into.
+
 ---
 
 ## Security properties demonstrated
@@ -100,8 +127,9 @@ bunx playwright install chromium          # once
 node scripts/e2e.mjs
 ```
 
-19 checks, all driven through a real browser — the full flow, proof that a refresh
-reissues every token, and four attack simulations that must fail.
+39 checks, all driven through a real browser — the full flow, proof that a refresh
+reissues every token, four attack simulations that must fail, and the machine path
+(`client_credentials` → `introspect` active → tampered token inactive).
 
 ---
 
@@ -129,7 +157,8 @@ lib/pkce.ts             code_verifier / code_challenge
 lib/authorize.ts        "where does this authorization request go next?"
 
 app/oauth/authorize     front-channel entry point
-app/oauth/token         back-channel code + refresh exchange
+app/oauth/token         back-channel code + refresh exchange, incl. client_credentials
+app/oauth/introspect    RFC 7662 — is this token live, and what does it authorise?
 app/oauth/userinfo      resource server
 app/oauth/revoke        token revocation
 app/api/oidc/*          discovery + JWKS (rewritten to /.well-known/*)
@@ -138,7 +167,7 @@ app/login, app/consent  the only UI a real provider must write itself
 app/account             connected-apps page
 
 app/client/**           the third-party app, incl. two attack buttons
-scripts/e2e.mjs         19-check Playwright proof
+scripts/e2e.mjs         39-check Playwright proof
 ```
 
 ### Gotchas found while building this

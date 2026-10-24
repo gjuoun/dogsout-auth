@@ -10,13 +10,15 @@ export async function GET() {
     token_endpoint: ISSUER + "/oauth/token",
     userinfo_endpoint: ISSUER + "/oauth/userinfo",
     revocation_endpoint: ISSUER + "/oauth/revoke",
+    introspection_endpoint: ISSUER + "/oauth/introspect",
     jwks_uri: ISSUER + "/.well-known/jwks.json",
     response_types_supported: ["code"],
-    grant_types_supported: ["authorization_code", "refresh_token"],
+    grant_types_supported: ["authorization_code", "refresh_token", "client_credentials"],
     scopes_supported: ["openid", "profile", "email", "notes:read"],
     subject_types_supported: ["public"],
     id_token_signing_alg_values_supported: ["RS256"],
-    token_endpoint_auth_methods_supported: ["client_secret_post"],
+    token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
+    introspection_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
     code_challenge_methods_supported: ["S256"],
   });
 }

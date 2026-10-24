@@ -62,11 +62,15 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Re
         <label>Name<input name="name" placeholder="shadow" required /></label>
         <label>Redirect URI(s), one per line, exact match
           <textarea name="redirect_uris" rows={2} placeholder={ISSUER + "/client/callback"} required /></label>
+        <label>Scopes, space separated
+          <textarea name="scopes" rows={1} placeholder="openid profile email" /></label>
         <button className="primary" type="submit">Create agent</button>
       </form>
       <p className="hint">
-        Scopes default to openid profile email. The secret appears once after creation —
-        store it in the agent&apos;s own secret slot, never in a file.
+        Scopes default to <code>openid profile email</code>. An agent that acts as itself
+        (grant <code>client_credentials</code>) needs a resource scope such as{" "}
+        <code>notes:read</code> instead. The secret appears once after creation — store it in
+        the agent&apos;s own secret slot, never in a file.
       </p>
     </div>
   );
