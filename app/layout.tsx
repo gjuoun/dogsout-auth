@@ -25,6 +25,9 @@ export default async function RootLayout({
 							<a href="/account">Connected apps</a>
 							<a href="/.well-known/openid-configuration">discovery</a>
 							<a href="/.well-known/jwks.json">jwks</a>
+							<form method="POST" action="/logout">
+								<button className="navlink">Sign out</button>
+							</form>
 						</>
 					)}
 				</nav>

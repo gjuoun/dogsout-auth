@@ -145,6 +145,10 @@ export const db = {
         | undefined;
       return row?.user_id;
     },
+    /** End one provider session. Returns whether it existed — logout is idempotent. */
+    delete(sid: string): boolean {
+      return getDb().prepare("DELETE FROM sessions WHERE sid = ?").run(sid).changes > 0;
+    },
     set(sid: string, userId: string) {
       getDb()
         .prepare("INSERT INTO sessions (sid, user_id) VALUES (?, ?) ON CONFLICT(sid) DO UPDATE SET user_id = excluded.user_id")
@@ -158,6 +162,26 @@ export const db = {
   codes: new SqliteMap<AuthCode>("codes", "code"),
   refresh: new SqliteMap<RefreshToken>("refresh", "token"),
   revokedFamilies: new SqliteSet("revoked_families", "family"),
+  /**
+   * Access tokens are signed and stateless, so an unexpired one keeps verifying
+   * after it is revoked. This table is the exception list: a jti lives here only
+   * until the token it names would have expired on its own (RFC 7009 needs no
+   * record of a token that is already inert).
+   */
+  revokedTokens: {
+    has(jti: string): boolean {
+      return !!getDb().prepare("SELECT 1 FROM revoked_tokens WHERE jti = ?").get(jti);
+    },
+    add(jti: string, expiresAt: number) {
+      const sql = getDb();
+      // Prune on write: the table stays bounded by the access-token TTL.
+      sql.prepare("DELETE FROM revoked_tokens WHERE expires_at <= ?").run(Date.now());
+      sql.prepare("INSERT OR IGNORE INTO revoked_tokens (jti, expires_at) VALUES (?, ?)").run(jti, expiresAt);
+    },
+    clear() {
+      getDb().exec("DELETE FROM revoked_tokens");
+    },
+  },
   traces: mem.traces,
   get seq() {
     return mem.seq;

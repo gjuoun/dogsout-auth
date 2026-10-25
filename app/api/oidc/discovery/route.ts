@@ -19,6 +19,7 @@ export async function GET() {
     id_token_signing_alg_values_supported: ["RS256"],
     token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
     introspection_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
+    revocation_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
     code_challenge_methods_supported: ["S256"],
   });
 }
