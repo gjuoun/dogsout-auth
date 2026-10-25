@@ -210,6 +210,51 @@ const machineDisco = await (await page.request.get(B + "/.well-known/openid-conf
 check(machineDisco.grant_types_supported.includes("client_credentials") && !!machineDisco.introspection_endpoint,
   "discovery advertises the machine grant and the introspection endpoint");
 
+console.log("\n--- Phase 9: revocation (RFC 7009) + logout");
+// The machine token minted in Phase 8 is a signed JWT, so it keeps verifying
+// until it expires. Revocation is the exception list that makes it dead NOW.
+const revokeRes = await page.request.post(B + "/oauth/revoke", {
+  form: { token: machine.access_token }, headers: { authorization: machineBasic } });
+check(revokeRes.status() === 200 && (await revokeRes.text()) === "",
+  "revoking an access token answers 200 with an empty body");
+const afterRevoke = await (await introspect(machine.access_token)).json();
+check(afterRevoke.active === false && Object.keys(afterRevoke).length === 1,
+  "a revoked access token introspects inactive");
+const unknownToken = await page.request.post(B + "/oauth/revoke", {
+  form: { token: "definitely-not-a-token" }, headers: { authorization: machineBasic } });
+check(unknownToken.status() === 200, "an unknown token still answers 200 (never an existence oracle)");
+const anonRevoke = await page.request.post(B + "/oauth/revoke", { form: { token: machine.access_token } });
+check(anonRevoke.status() === 401, "revocation without client credentials is refused with 401");
+
+// A refresh token takes its whole family with it: the demo client's next
+// refresh is dead, and the client page reports it.
+await page.goto(B + "/client");
+const demoRefresh = ((await page.locator("table.tok tr td:nth-child(2)").allTextContents())[2] ?? "").trim();
+check(demoRefresh.length > 10, "the demo client still holds a refresh token to revoke");
+const rtRevoke = await page.request.post(B + "/oauth/revoke", {
+  form: { token: demoRefresh, token_type_hint: "refresh_token",
+    client_id: "demo-client", client_secret: "demo-secret-do-not-ship" } });
+check(rtRevoke.status() === 200, "revoking a refresh token answers 200 (client_secret_post)");
+await page.goto(B + "/client/refresh");
+await page.waitForURL("**/client");
+check((await page.textContent("body")).includes("invalid_grant"),
+  "revoking the refresh token makes the next refresh fail");
+
+const revokeDisco = await (await page.request.get(B + "/.well-known/openid-configuration")).json();
+check(revokeDisco.revocation_endpoint === B + "/oauth/revoke" &&
+  (revokeDisco.revocation_endpoint_auth_methods_supported ?? []).includes("client_secret_basic"),
+  "discovery advertises the revocation endpoint and its auth methods");
+
+// LOGOUT — last, because every phase above needs the provider session.
+await page.goto(B + "/account");
+await page.click("text=Sign out");
+await page.waitForURL(B + "/");
+check((await page.context().cookies()).every((c) => c.name !== "op_session"),
+  "/logout clears the session cookie");
+const guarded = await page.request.get(B + "/account", { maxRedirects: 0 });
+check([302, 307].includes(guarded.status()) && (guarded.headers()["location"] ?? "").includes("/login"),
+  "/account redirects to /login without a session");
+
 await browser.close();
 console.log(failures === 0 ? "\nALL CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

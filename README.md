@@ -83,6 +83,7 @@ browser, a consent screen, or a user:
 |---|---|---|
 | **RFC 6749 §4.4** | `POST /oauth/token`, `grant_type=client_credentials` | a signed `access_token` whose `sub` **is the client**, `aud` derived from the scope — and deliberately **no** `refresh_token` (§4.4.3), **no** `id_token` (nobody to describe) |
 | **RFC 7662** | `POST /oauth/introspect` | `{"active": false}` for anything it cannot vouch for; the full claims (`sub`, `client_id`, `scope`, `aud`, `iat`, `exp`, `jti`) for a live token |
+| **RFC 7009** | `POST /oauth/revoke` | `200` with an empty body for **anything** — the token dies if it is yours, and a token that is unknown, already expired or somebody else's is indistinguishable from outside |
 
 Both authenticate the client with `client_id` + `client_secret`, sent as
 `Authorization: Basic` **or** in the form body — never both (RFC 6749 §2.3). Register an agent
@@ -97,9 +98,20 @@ curl -u "<client_id>:<client_secret>" -d "token=<access_token>" \
   http://localhost:3000/oauth/introspect
 ```
 
-Introspection only answers about the caller's **own** tokens, and an unexpired token cannot be
-revoked yet — that is M3b, and `lib/introspect.ts#isTokenRevoked` is the single seam it plugs
-into.
+Introspection only answers about the caller's **own** tokens. A signed token keeps verifying
+until it expires, so revocation is an **exception list**: `POST /oauth/revoke` records the
+token's `jti` (or kills a refresh token and its whole family) and introspection starts
+answering `{"active": false}` immediately. The endpoint answers `200` for a token it cannot
+act on, because a revocation endpoint that reports *whether* a token existed is an oracle:
+
+```bash
+curl -u "<client_id>:<client_secret>" -d "token=<access_token>" \
+  http://localhost:3000/oauth/revoke            # 200, empty body, token now dead
+```
+
+`POST /logout` ends the **provider session** (`op_session` is cleared and its row deleted) and
+nothing else — the tokens your browser already handed to a client stay alive. Logging out of
+the provider is not the same act as withdrawing a grant; that is `/account` → *Remove access*.
 
 ---
 
@@ -111,7 +123,8 @@ into.
 - **Refresh rotation + reuse detection** — presenting a retired token kills the whole family.
 - **`state`** for CSRF, **`nonce`** for id_token replay.
 - **Asymmetric signing** — JWKS publishes only the public key; no shared secret for verification.
-- **User-side revocation** at `/account`.
+- **User-side revocation** at `/account`, and **RFC 7009** token revocation on the back channel.
+- **Session ≠ authorisation** — `/logout` ends the provider session; it never quietly rewrites grants.
 
 The two red buttons on the client page simulate a stolen token. Press them and watch
 the trace panel show the revocation fire.
@@ -127,9 +140,10 @@ bunx playwright install chromium          # once
 node scripts/e2e.mjs
 ```
 
-39 checks, all driven through a real browser — the full flow, proof that a refresh
-reissues every token, four attack simulations that must fail, and the machine path
-(`client_credentials` → `introspect` active → tampered token inactive).
+49 checks, all driven through a real browser — the full flow, proof that a refresh
+reissues every token, four attack simulations that must fail, the machine path
+(`client_credentials` → `introspect` active → tampered token inactive), and the exit path
+(revoke → `introspect` inactive → sign out → `/account` bounces to `/login`).
 
 ---
 
@@ -160,14 +174,15 @@ app/oauth/authorize     front-channel entry point
 app/oauth/token         back-channel code + refresh exchange, incl. client_credentials
 app/oauth/introspect    RFC 7662 — is this token live, and what does it authorise?
 app/oauth/userinfo      resource server
-app/oauth/revoke        token revocation
+app/oauth/revoke        RFC 7009 — kill this token (jti list, or a whole refresh family)
+app/logout              end the provider session (clears op_session, keeps grants)
 app/api/oidc/*          discovery + JWKS (rewritten to /.well-known/*)
 
 app/login, app/consent  the only UI a real provider must write itself
 app/account             connected-apps page
 
 app/client/**           the third-party app, incl. two attack buttons
-scripts/e2e.mjs         39-check Playwright proof
+scripts/e2e.mjs         49-check Playwright proof
 ```
 
 ### Gotchas found while building this

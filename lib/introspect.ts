@@ -4,7 +4,7 @@
 
 import { jwtVerify, createLocalJWKSet, type JWTPayload } from "jose";
 import { keys, ISSUER } from "@/lib/keys";
-import { findUser } from "@/lib/store";
+import { db, findUser } from "@/lib/store";
 
 export type Introspection =
   | { active: false }
@@ -23,19 +23,18 @@ export type Introspection =
     };
 
 /**
- * M3b insertion point. Access tokens are stateless, so a revoked-but-unexpired
- * token still verifies; M3b records jtis (a revoked_tokens table) and this
- * function starts answering true. Nothing else about the response changes.
+ * RFC 7009 revocation. Access tokens are stateless, so a revoked-but-unexpired
+ * token still verifies; /oauth/revoke records its jti and this is the one check
+ * that turns it into "not active". Nothing else about the response changes.
  */
 export function isTokenRevoked(jti: string): boolean {
-  void jti; // M3b: return db.revokedTokens.has(jti). Nothing revokes a signed access token today.
-  return false;
+  return db.revokedTokens.has(jti);
 }
 
 /**
  * Who may ask about whose token. Equality today: the only introspection clients
- * are the clients themselves. A real resource-server client in M3b widens this
- * — it is the single place that rule lives.
+ * are the clients themselves. A real resource-server client (one that did not
+ * mint the token) widens this — it is the single place that rule lives.
  */
 export function mayIntrospect(callerClientId: string, tokenClientId: string): boolean {
   return callerClientId === tokenClientId;

@@ -66,6 +66,10 @@ const SCHEMA = `
   CREATE TABLE IF NOT EXISTS revoked_families (
     family TEXT PRIMARY KEY
   );
+  CREATE TABLE IF NOT EXISTS revoked_tokens (
+    jti TEXT PRIMARY KEY,
+    expires_at INTEGER NOT NULL DEFAULT 0
+  );
   CREATE TABLE IF NOT EXISTS grants (
     user_id TEXT NOT NULL,
     client_id TEXT NOT NULL,
