@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,7 +19,7 @@ export default async function RootLayout({
 		<html lang="en">
 			<body>
 				<nav className="nav">
-					<a href="/">🏛️ YourID</a>
+					<Link href="/">🏛️ YourID</Link>
 					{signedIn && (
 						<>
 							<a href="/client">🧩 Client app</a>
