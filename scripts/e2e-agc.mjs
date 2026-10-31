@@ -3,7 +3,6 @@
 import { chromium } from "playwright";
 
 const B = (process.env.BASE ?? "http://localhost:3410").replace(/\/$/, "");
-const STUB = process.env.CLOUD_STUB_URL ?? "http://localhost:3411";
 let failures = 0;
 const check = (c, m) => { if (!c) failures++; console.log(`${c ? "PASS" : "FAIL"}  ${m}`); };
 
