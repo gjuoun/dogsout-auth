@@ -1,7 +1,6 @@
 import "./setup";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { putSecret, readSecret } from "../lib/secrets";
 
 // Literal source: a value stored in the secrets table, no network.
