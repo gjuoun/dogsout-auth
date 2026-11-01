@@ -7,6 +7,7 @@ import { formatTime } from "@/lib/format";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/instance/status";
+import { AppHeader } from "@/components/instance/app-header";
 import { PanelDetail } from "@/components/instance/panel-detail";
 
 // Master-detail: the instance list on the left (sticky header, scrolling body, selected row marked),
@@ -30,7 +31,9 @@ export default async function Panel({ searchParams }: { searchParams: Promise<Re
   const selected = !error && selectedId ? await loadSelected(selectedId) : null;
 
   return (
-    <div className="bf mx-auto flex max-w-[1200px] flex-col gap-4">
+    <div className="bf-shell">
+    <AppHeader active="instances" />
+    <div className="bf mx-auto flex max-w-[1200px] flex-col gap-4 px-6 py-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 text-sm">
           <span className="font-medium">Instances</span>
@@ -89,6 +92,7 @@ export default async function Panel({ searchParams }: { searchParams: Promise<Re
           {selected && <PanelDetail inst={selected} />}
         </div>
       )}
+    </div>
     </div>
   );
 }

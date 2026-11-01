@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { MetaChip, StatusBadge } from "@/components/instance/status";
 import { Timeline } from "@/components/instance/timeline";
 import { SessionLog } from "@/components/instance/session-log";
+import { AppHeader } from "@/components/instance/app-header";
 
 // One instance: the full timeline on the left, the session log and the meta chips on the right.
 // The columns top-align; the timeline card is as tall as its events, nothing more.
@@ -24,7 +25,9 @@ export default async function PanelDetail({ params }: { params: Promise<{ id: st
   } catch (err) {
     const msg = err instanceof CloudUnavailable ? err.message : "could not load the instance";
     return (
-      <div className="bf mx-auto max-w-[1000px]">
+      <div className="bf-shell">
+      <AppHeader active="instances" />
+      <div className="bf mx-auto max-w-[1000px] px-6 py-8">
         <Card>
           <CardContent className="grid gap-3">
             <p role="alert" className="text-sm text-destructive">{msg}</p>
@@ -32,12 +35,15 @@ export default async function PanelDetail({ params }: { params: Promise<{ id: st
           </CardContent>
         </Card>
       </div>
+      </div>
     );
   }
   if (!inst) notFound();
 
   return (
-    <div className="bf mx-auto flex max-w-[1200px] flex-col gap-4">
+    <div className="bf-shell">
+    <AppHeader active="instances" />
+    <div className="bf mx-auto flex max-w-[1200px] flex-col gap-4 px-6 py-8">
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
         <span className="font-mono text-sm font-medium">{inst.id}</span>
         <StatusBadge status={inst.status} />
@@ -66,6 +72,7 @@ export default async function PanelDetail({ params }: { params: Promise<{ id: st
           <Button variant="outline" asChild className="w-fit"><Link href="/panel">Back to panel</Link></Button>
         </div>
       </div>
+    </div>
     </div>
   );
 }

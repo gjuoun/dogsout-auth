@@ -140,3 +140,6 @@ legend:not(.bf legend) { font-size: 12px; color: var(--mut); padding: 0 4px; }
 .slot { margin-top: 14px; font-size: 12px; color: var(--mut); }
 .slot code { color: var(--fg); word-break: break-all; }
 }
+
+/* Bigface pages (/order, /panel, /panel/:id) bring their own top bar, so the legacy global nav is hidden there. */
+body:has(.bf-shell) > nav.nav { display: none; }

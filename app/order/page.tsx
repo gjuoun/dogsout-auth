@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import CopyButton from "@/components/CopyButton";
+import { AppHeader } from "@/components/instance/app-header";
 
 // Session-gated order form. The submit goes to /order/submit, which calls the cloud API.
 // After a successful order the form is replaced by the result, so the order is visibly accepted.
@@ -19,7 +20,9 @@ export default async function Order({ searchParams }: { searchParams: Promise<Re
   const created = Boolean(sp.created);
 
   return (
-    <div className="bf mx-auto grid max-w-[1000px] gap-6 py-2 lg:grid-cols-[1fr_300px]">
+    <div className="bf-shell">
+    <AppHeader active="instances" />
+    <div className="bf mx-auto grid max-w-[1000px] gap-6 py-8 lg:grid-cols-[1fr_300px]">
       {created ? (
         <Card className="lg:col-span-2">
           <CardHeader>
@@ -93,6 +96,7 @@ export default async function Order({ searchParams }: { searchParams: Promise<Re
           </Card>
         </>
       )}
+    </div>
     </div>
   );
 }
