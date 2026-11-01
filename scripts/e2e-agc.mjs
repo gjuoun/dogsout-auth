@@ -24,7 +24,7 @@ await page.waitForTimeout(500);
 
 console.log("\n--- /order");
 await page.goto(B + "/order");
-check(await page.locator("text=Order an agent run").isVisible(), "order form renders for a signed-in human");
+check(await page.locator("text=New instance").isVisible(), "order form renders for a signed-in human");
 await page.fill('textarea[name="task"]', "e2e task");
 await page.fill('input[name="repo"]', "dogsout-auth");
 await page.click('button[type="submit"]');
@@ -36,11 +36,14 @@ check(shown.trim() === "stub-activation-once", "activation code is shown once on
 console.log("\n--- /panel");
 await page.goto(B + "/panel");
 check(await page.locator("text=ws.june.stub-demo.0a1b").first().isVisible(), "panel lists the instance from the cloud API");
+// Row click selects the instance in the right pane (?selected=). The full timeline is on /panel/:id.
 await page.click("text=ws.june.stub-demo.0a1b");
+await page.waitForURL("**/panel?selected=**");
+await page.click("text=Open detail");
 await page.waitForURL("**/panel/**");
 const ev = await page.locator("ol li").count();
 check(ev === 3, `timeline shows 3 events (saw ${ev})`);
-check(await page.locator("text=session log:").isVisible(), "detail shows the session log path");
+check(await page.locator("text=Session log").first().isVisible(), "detail shows the session log");
 
 console.log("\n" + (failures === 0 ? "ALL CHECKS PASSED" : `${failures} FAILED`));
 await browser.close();
