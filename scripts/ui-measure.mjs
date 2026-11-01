@@ -29,15 +29,22 @@ await page.waitForTimeout(400);
 // detail pane that takes the rest of the row.
 //   a) list card width is 400 +/- 2px
 //   b) detail pane left edge sits 8-24px right of the list card's right edge
-//   c) detail pane width is the content row width (.bf root) minus list width minus gap, +/- 4px
+//   c) detail pane width is the content width (.bf root minus its horizontal padding) minus list width minus gap, +/- 4px
 await page.goto(B + "/panel");
 const geo = await page.evaluate(() => {
   const list = document.querySelector("table.plist")?.closest("[data-slot=card]");
   const detail = list?.nextElementSibling;
-  const root = document.querySelector(".bf");
+  // The content root is the .bf element inside the page shell. The top bar is not a content root.
+  const root = document.querySelector(".bf-shell > .bf");
   const l = list?.getBoundingClientRect();
   const d = detail?.getBoundingClientRect();
-  const rootW = root ? Math.round(root.getBoundingClientRect().width) : null;
+  // Content width: the .bf root's border box minus its horizontal padding. The bigface pages keep
+  // px-6 on the root so the top bar and body align; the check measures the row inside that padding.
+  let rootW = null;
+  if (root) {
+    const cs = getComputedStyle(root);
+    rootW = Math.round(root.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+  }
   return { listW: l ? Math.round(l.width) : null, listRight: l ? Math.round(l.right) : null, detailX: d ? Math.round(d.x) : null, detailW: d ? Math.round(d.width) : null, rootW };
 });
 check(geo.listW !== null && Math.abs(geo.listW - 400) <= 2,
