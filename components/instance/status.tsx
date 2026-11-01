@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { SPACING } from "@/lib/spacing";
 import { statusClass } from "@/lib/format";
 
 // Status colour from the bigface palette tokens: running green, deploying amber, done neutral grey,
@@ -13,7 +14,7 @@ const DOT: Record<string, string> = {
 export function StatusBadge({ status }: { status: string }) {
   const known = statusClass(status) !== "";
   return (
-    <Badge variant="outline" className="gap-1.5 border-border" data-status={status}>
+    <Badge variant="outline" className={`gap-1.5 border-border ${SPACING.pill}`} data-status={status}>
       <span
         className="size-2 rounded-full"
         style={{ background: known ? DOT[status] : "var(--theme-fgDim)" }}

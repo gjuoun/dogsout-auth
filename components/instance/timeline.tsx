@@ -1,4 +1,5 @@
 import { formatTime } from "@/lib/format";
+import { SPACING } from "@/lib/spacing";
 import type { TimelineEvent } from "@/lib/cloud";
 
 // Events newest first. A vertical rail joins the nodes; the rail is muted ink so it reads on the
@@ -16,7 +17,7 @@ export function Timeline({ events, compact = false }: { events: TimelineEvent[];
               <span className="mt-1.5 inline-block size-2.5 rounded-full bg-primary ring-2 ring-card" aria-hidden />
               {!last && <span className="mt-1 w-0.5 flex-1 bg-muted-foreground/75" aria-hidden />}
             </div>
-            <div className={"grid gap-0.5 " + (compact ? "pb-3" : "pb-4")}>
+            <div className={"grid gap-0.5 " + (compact ? SPACING.timelineGapCompact : SPACING.timelineGap)}>
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <span className="rounded border border-border px-1.5 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">{e.type}</span>
                 <span className="font-mono text-xs tabular-nums text-muted-foreground">{formatTime(e.ts)}</span>

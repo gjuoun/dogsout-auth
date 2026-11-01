@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { MetaChip, StatusBadge } from "@/components/instance/status";
 import { Timeline } from "@/components/instance/timeline";
 import { SessionLog } from "@/components/instance/session-log";
+import { SPACING } from "@/lib/spacing";
 import { AppHeader } from "@/components/instance/app-header";
 
 // One instance: the full timeline on the left, the session log and the meta chips on the right.
@@ -56,18 +57,18 @@ export default async function PanelDetail({ params }: { params: Promise<{ id: st
       </div>
       <div className="grid items-start gap-4 lg:grid-cols-[1fr_320px]">
         <Card size="sm">
-          <CardHeader>
+          <CardHeader className="px-4">
             <CardTitle className="text-sm">Timeline</CardTitle>
             <CardDescription>{(inst.events ?? []).length} events, newest first</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4">
             <Timeline events={inst.events ?? []} />
           </CardContent>
         </Card>
-        <div className="grid content-start gap-4">
+        <div className={`grid content-start ${SPACING.blockGap}`}>
           <Card size="sm">
-            <CardHeader><CardTitle className="text-sm">Session log</CardTitle></CardHeader>
-            <CardContent><SessionLog path={inst.session_log_path} /></CardContent>
+            <CardHeader className="px-4"><CardTitle className="text-sm">Session log</CardTitle></CardHeader>
+            <CardContent className="px-4"><SessionLog path={inst.session_log_path} /></CardContent>
           </Card>
           <Button variant="outline" asChild className="w-fit"><Link href="/panel">Back to panel</Link></Button>
         </div>

@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/instance/status";
 import { AppHeader } from "@/components/instance/app-header";
+import { SPACING } from "@/lib/spacing";
 import { PanelDetail } from "@/components/instance/panel-detail";
 
 // Master-detail: the instance list on the left (sticky header, scrolling body, selected row marked),
@@ -52,9 +53,9 @@ export default async function Panel({ searchParams }: { searchParams: Promise<Re
         </Card>
       )}
       {!error && rows.length > 0 && (
-        <div className="grid h-[calc(100vh-190px)] min-h-[560px] w-full gap-4 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
+        <div className={`grid h-[calc(100vh-190px)] min-h-[560px] w-full ${SPACING.columnGap} lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]`}>
           <Card size="sm" className="min-h-0 gap-0 overflow-hidden p-0">
-            <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className={`min-h-0 flex-1 overflow-y-auto ${SPACING.cardPad}`}>
               <table className="plist w-full table-fixed">
                 <colgroup>
                   <col />
@@ -63,9 +64,9 @@ export default async function Panel({ searchParams }: { searchParams: Promise<Re
                 </colgroup>
                 <thead className="sticky top-0 z-10 border-b border-border bg-card">
                   <tr>
-                    <th className="min-w-0 px-4">Instance</th>
-                    <th className="whitespace-nowrap">Status</th>
-                    <th className="whitespace-nowrap pr-4 text-right">Created</th>
+                    <th className={`min-w-0 text-left ${SPACING.headerGap}`}>Instance</th>
+                    <th className={`whitespace-nowrap text-left ${SPACING.headerGap}`}>Status</th>
+                    <th className={`whitespace-nowrap pr-4 text-right ${SPACING.headerGap}`}>Created</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -75,13 +76,13 @@ export default async function Panel({ searchParams }: { searchParams: Promise<Re
                       <tr
                         key={r.id}
                         data-selected={on ? "true" : undefined}
-                        className={on ? "bg-[color-mix(in_oklab,var(--primary)_22%,var(--card))] shadow-[inset_3px_0_0_var(--primary)]" : ""}
+                        className={`${SPACING.rowHeight} ${on ? "bg-[color-mix(in_oklab,var(--primary)_22%,var(--card))]" : ""}`}
                       >
-                        <td className="id min-w-0 px-4">
+                        <td className={`id relative min-w-0 ${SPACING.cellPadY} ${on ? "before:absolute before:inset-y-0 before:-left-4 before:w-[3px] before:bg-primary" : ""}`}>
                           <Link href={`/panel?selected=${encodeURIComponent(r.id)}`} title={r.id} className="block min-w-0 truncate py-0.5 hover:underline underline-offset-4">{r.id}</Link>
                         </td>
-                        <td><StatusBadge status={r.status} /></td>
-                        <td className="time whitespace-nowrap pr-4 text-right text-xs text-muted-foreground">{formatTime(r.created_at)}</td>
+                        <td className={SPACING.cellPadY}><StatusBadge status={r.status} /></td>
+                        <td className={`time whitespace-nowrap ${SPACING.cellPadY} pr-4 text-right text-xs text-muted-foreground`}>{formatTime(r.created_at)}</td>
                       </tr>
                     );
                   })}

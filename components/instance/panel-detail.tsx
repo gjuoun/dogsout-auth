@@ -12,7 +12,7 @@ import { SessionLog } from "@/components/instance/session-log";
 export function PanelDetail({ inst }: { inst: InstanceDetail }) {
   return (
     <Card size="sm" className="min-h-0 overflow-y-auto">
-      <CardHeader className="flex-row items-center justify-between gap-3">
+      <CardHeader className="flex-row items-center justify-between gap-3 px-4">
         <div className="grid gap-1">
           <CardTitle className="font-mono text-base">{inst.id}</CardTitle>
           <CardDescription>created {formatTime(inst.created_at)}</CardDescription>
@@ -22,7 +22,7 @@ export function PanelDetail({ inst }: { inst: InstanceDetail }) {
           <Button variant="outline" size="sm" asChild><Link href={`/panel/${encodeURIComponent(inst.id)}`}>Open detail</Link></Button>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-5">
+      <CardContent className="grid gap-5 px-4">
         <div className="flex flex-wrap gap-2">
           <MetaChip k="repo" v={inst.repo} />
           <MetaChip k="worktree" v={inst.worktree} />
