@@ -219,6 +219,7 @@ app/account             connected-apps page
 
 app/client/**           the third-party app, incl. two attack buttons
 scripts/e2e.mjs         49-check Playwright proof
+scripts/seed-dev.mjs    dev only: seeds six instances through the public cloud API (needs AS on 3410, cloud API on 3411, a fresh database)
 ```
 
 ### Gotchas found while building this
