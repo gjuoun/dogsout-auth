@@ -1,10 +1,17 @@
-// Human-readable time for the panel. Output is YYYY-MM-DD HH:mm in UTC, built from the ISO string
-// so server and browser render the same text (no locale or timezone drift between them).
+// Time for the panel, rendered as YYYY-MM-DD HH:mm in the local timezone of the process that
+// renders the page. The panel pages and their components are server components, so the text is
+// computed once on the server and sent as HTML; the browser never recomputes it.
+//
+// Input is either epoch milliseconds (the cloud API's created_at and event ts) or an ISO 8601
+// string (the contract stub). Empty or unparseable input renders as an em dash, never as the raw value.
 
-export function formatTime(iso: string | undefined | null): string {
-  if (!iso) return "—";
-  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(iso);
-  return m ? `${m[1]} ${m[2]}` : iso;
+export function formatTime(value: number | string | undefined | null): string {
+  if (value === undefined || value === null || value === "") return "—";
+  // Date takes epoch milliseconds or an ISO string directly; both name the same instant.
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 /** Status text to a CSS class: deploying, running, done or failed. Unknown values get no colour. */

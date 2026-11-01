@@ -20,8 +20,11 @@ export type OrderInput = {
 
 export type Created = { id: string; activation_code: string; status: string };
 
-export type InstanceSummary = { id: string; status: string; created_at: string };
-export type TimelineEvent = { type: string; message: string; ts: string };
+// created_at and event ts are epoch milliseconds from the cloud API; the contract stub returns ISO strings.
+export type Timestamp = number | string;
+
+export type InstanceSummary = { id: string; status: string; created_at: Timestamp };
+export type TimelineEvent = { type: string; message: string; ts: Timestamp };
 export type InstanceDetail = InstanceSummary & {
   task?: string;
   repo?: string;
