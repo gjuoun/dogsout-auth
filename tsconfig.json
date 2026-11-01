@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "scripts/cloud-stub.ts"]
+  "exclude": ["node_modules", "scripts/cloud-stub.ts", "mockups/**"]
 }
