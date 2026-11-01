@@ -3,8 +3,9 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/store";
 import { cloudConfigFromEnv, getInstance, CloudUnavailable } from "@/lib/cloud";
+import { formatTime, statusClass } from "@/lib/format";
 
-// Timeline view of one instance: events newest first, plus meta chips and the session log path.
+// Timeline of one instance, newest event first, with the meta chips and the session log slot.
 export default async function PanelDetail({ params }: { params: Promise<{ id: string }> }) {
   const sid = (await cookies()).get("op_session")?.value;
   const userId = sid ? db.sessions.get(sid) : undefined;
@@ -17,38 +18,51 @@ export default async function PanelDetail({ params }: { params: Promise<{ id: st
   } catch (err) {
     const msg = err instanceof CloudUnavailable ? err.message : "could not load the instance";
     return (
-      <div className="card narrow">
-        <p className="err">{msg}</p>
-        <Link href="/panel">Back to panel</Link>
+      <div className="page">
+        <div className="card">
+          <p className="err">{msg}</p>
+          <Link href="/panel">Back to panel</Link>
+        </div>
       </div>
     );
   }
   if (!inst) notFound();
-  const events = [...inst.events].sort((a, b) => (a.ts < b.ts ? 1 : -1));
-  const chips = [
+  const events = [...(inst.events ?? [])].sort((a, b) => (a.ts < b.ts ? 1 : -1));
+  const meta: [string, string | undefined][] = [
     ["repo", inst.repo],
     ["worktree", inst.worktree],
     ["branch", inst.branch],
-  ].filter((c): c is [string, string] => Boolean(c[1]));
+  ];
 
   return (
-    <div className="card narrow">
-      <div className="brand">🏛️ YourID — {inst.id}</div>
-      <p className="muted">{inst.status} · {inst.created_at}</p>
-      <div className="row wrap">
-        {chips.map(([k, v]) => (
-          <span key={k} className="chip mono">{k}: {v}</span>
-        ))}
+    <div className="page">
+      <div className="card">
+        <div className="brand">🏛️ YourID — {inst.id}</div>
+        <span className={`status ${statusClass(inst.status)}`}>{inst.status}</span>
+        <span className="muted" style={{ marginLeft: 10 }}>created {formatTime(inst.created_at)}</span>
+        <div className="chips">
+          {meta.map(([k, v]) => (
+            <span key={k} className={v ? "chip" : "chip empty"}>{k}: {v ?? "—"}</span>
+          ))}
+        </div>
+        <h3>Timeline</h3>
+        {events.length === 0 && <p className="muted">No events yet.</p>}
+        <ol className="tl">
+          {events.map((e, i) => (
+            <li key={i}>
+              <div className="evhead">
+                <span className="evtype">{e.type}</span>
+                <span className="evtime">{formatTime(e.ts)}</span>
+              </div>
+              <div className="evmsg">{e.message}</div>
+            </li>
+          ))}
+        </ol>
+        <div className="slot">
+          Session log: {inst.session_log_path ? <code>{inst.session_log_path}</code> : "未产生"}
+        </div>
+        <div className="action"><Link className="btn" href="/panel">Back to panel</Link></div>
       </div>
-      {inst.session_log_path && (
-        <p className="hint">session log: <code>{inst.session_log_path}</code></p>
-      )}
-      <ol>
-        {events.map((e, i) => (
-          <li key={i}><b>{e.type}</b> · {e.message} <span className="muted">{e.ts}</span></li>
-        ))}
-      </ol>
-      <Link href="/panel">Back to panel</Link>
     </div>
   );
 }
