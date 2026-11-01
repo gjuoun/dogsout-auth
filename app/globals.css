@@ -1,6 +1,14 @@
+/* Layer order: the legacy page styles sit above Tailwind preflight (so their look is unchanged)
+   and below Tailwind utilities (so bigface components win where they set a property). */
+@layer theme, base, legacy, components, utilities;
+
+@import "tailwindcss";
+@import "../styles/bigface/styles.css";
+
+@layer legacy {
 :root {
   --bg: #0f1115; --fg: #e6e8ee; --mut: #8b93a7; --bd: #272b36;
-  --card: #161922; --acc: #6ea8fe; --danger: #ff6b6b; --ok: #4ade80;
+  --legacy-card: #161922; --acc: #6ea8fe; --danger: #ff6b6b; --ok: #4ade80;
 }
 * { box-sizing: border-box; }
 body {
@@ -18,7 +26,7 @@ a { color: var(--acc); }
 main { padding: 22px; }
 .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
 @media (max-width: 1100px) { .grid { grid-template-columns: 1fr; } }
-.card { background: var(--card); border: 1px solid var(--bd); border-radius: 12px; padding: 18px 20px; }
+.card { background: var(--legacy-card); border: 1px solid var(--bd); border-radius: 12px; padding: 18px 20px; }
 .narrow { max-width: 760px; }
 .brand { font-weight: 700; font-size: 15px; margin-bottom: 10px; }
 .brand.alt { color: #ffd479; }
@@ -114,7 +122,7 @@ legend { font-size: 12px; color: var(--mut); padding: 0 4px; }
 .tl { list-style: none; padding: 0; margin: 16px 0 0; position: relative; }
 .tl li { position: relative; padding: 0 0 18px 26px; }
 .tl li::before { content: ""; position: absolute; left: 4px; top: 6px; width: 9px; height: 9px;
-                 border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 3px var(--card); }
+                 border-radius: 50%; background: var(--acc); box-shadow: 0 0 0 3px var(--legacy-card); }
 .tl li::after { content: ""; position: absolute; left: 8px; top: 18px; bottom: 0; width: 1px; background: var(--bd); }
 .tl li:last-child::after { display: none; }
 .tl li:last-child { padding-bottom: 0; }
@@ -131,3 +139,4 @@ legend { font-size: 12px; color: var(--mut); padding: 0 4px; }
 .chip.empty { color: var(--mut); font-style: italic; }
 .slot { margin-top: 14px; font-size: 12px; color: var(--mut); }
 .slot code { color: var(--fg); word-break: break-all; }
+}

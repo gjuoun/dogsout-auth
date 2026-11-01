@@ -16,7 +16,7 @@ export default async function RootLayout({
 	// Session-gated nav: before sign-in only the brand shows — login stays minimal.
 	const signedIn = Boolean((await cookies()).get("op_session"));
 	return (
-		<html lang="en">
+		<html lang="en" data-mode="dark" style={{ colorScheme: "dark" }}>
 			<body>
 				<nav className="nav">
 					<Link href="/">🏛️ YourID</Link>
