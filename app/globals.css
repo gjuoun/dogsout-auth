@@ -99,13 +99,15 @@ legend:not(.bf legend) { font-size: 12px; color: var(--mut); padding: 0 4px; }
 
 /* --- panel table --- */
 .plist { width: 100%; border-collapse: collapse; font-size: 13px; }
+/* Header type style applies everywhere; its padding and rule are set per page (bigface pages use SPACING). */
 .plist th { text-align: left; font-weight: 500; font-size: 11px; text-transform: uppercase;
-            letter-spacing: .06em; color: var(--mut); padding: 0 10px 8px; border-bottom: 1px solid var(--bd); }
-.plist td { padding: 11px 10px; border-bottom: 1px solid var(--bd); vertical-align: middle; }
-.plist td.id a { color: var(--fg); text-decoration: none; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
-.plist td.id a:hover { color: var(--acc); }
-.plist td.time { color: var(--mut); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.plist tr:hover td { background: #10131b; }
+            letter-spacing: .06em; color: var(--mut); }
+.plist:not(.bf .plist) th { padding: 0 10px 8px; border-bottom: 1px solid var(--bd); }
+.plist:not(.bf .plist) td { padding: 11px 10px; border-bottom: 1px solid var(--bd); vertical-align: middle; }
+.plist:not(.bf .plist) td.id a { color: var(--fg); text-decoration: none; font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
+.plist:not(.bf .plist) td.id a:hover { color: var(--acc); }
+.plist:not(.bf .plist) td.time { color: var(--mut); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.plist:not(.bf .plist) tr:hover td { background: #10131b; }
 
 /* --- status: colour + dot, from the existing palette --- */
 .status { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; white-space: nowrap; }
