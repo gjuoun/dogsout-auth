@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db, findClient } from "@/lib/store";
 
 const HUMAN: Record<string, string> = {
@@ -10,7 +11,7 @@ const HUMAN: Record<string, string> = {
 export default async function Consent({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
   const sp = await searchParams;
   const r = db.authRequests.get(sp.req ?? "");
-  if (!r) return <div className="card narrow"><h2>Request expired</h2><a href="/">Start over</a></div>;
+  if (!r) return <div className="card narrow"><h2>Request expired</h2><Link href="/">Start over</Link></div>;
   const client = findClient(r.client_id)!;
 
   return (

@@ -98,6 +98,11 @@ curl -u "<client_id>:<client_secret>" -d "token=<access_token>" \
   http://localhost:3000/oauth/introspect
 ```
 
+Who may introspect whose token: a client always sees its own tokens. A client registered with the
+`as:introspect` scope sees any token, which is how the cloud API verifies spawn tokens. Every other
+caller gets `{"active": false}` for someone else's token.
+`as:introspect` is read from the client's registry row, not from its token, so a caller cannot grant itself the scope.
+The cloud API holds its own service client secret. This repo does not store it.
 Introspection only answers about the caller's **own** tokens. A signed token keeps verifying
 until it expires, so revocation is an **exception list**: `POST /oauth/revoke` records the
 token's `jti` (or kills a refresh token and its whole family) and introspection starts
@@ -162,6 +167,37 @@ write only the login + consent UI (steps 4 and 5 above). Read **RFC 9700** first
 
 ---
 
+## Agent instances: registration, secrets, order and panel
+
+An agent instance gets its own machine client. The cloud API registers it here, and it reads
+secrets with a short-lived spawn token. Four routes:
+
+| Route | Who calls it | Answers |
+|---|---|---|
+| `POST /api/admin/machine-clients` | cloud API, localhost only | `200 {client_id, client_secret}`; `409` on a duplicate name |
+| `POST /oauth/token` (client_credentials) | the instance | a token; `resource=secrets-api` for secret reads |
+| `GET /api/secrets/:key` | the instance, with that token | `200 {key, value}`; `401` bad token, `403` no `secrets:read`, `404` not in the table |
+| `/order`, `/panel`, `/panel/:id` | a signed-in human | forms and timelines, read through the cloud API |
+
+**Localhost rule.** `/api/admin/machine-clients` refuses any request whose Host is not loopback
+or that carries `X-Forwarded-For`, `X-Real-IP` or `Forwarded`. Bind with `-H 127.0.0.1`.
+A reverse proxy must never expose this path. The admin token is a second check, not the only one.
+
+**Secrets.** The `secrets` table is the allowlist: a key with no row is never resolved. Each row holds
+a literal `value` or an `op://` `ref`. `op://` references resolve in process through `@1password/sdk`,
+with the service-account token from `OP_SERVICE_ACCOUNT_TOKEN` or `~/.config/op/sa-token`. The `op` CLI
+is not used, because it prompts for macOS access on every call.
+
+**Env.** `ISSUER`, `AS_URL`, `AS_ADMIN_TOKEN`, `CLOUD_URL`, `CLOUD_SERVICE_TOKEN`, and optionally
+`OP_SERVICE_ACCOUNT_TOKEN` and `OP_TEST_REF`. See `.env.example`. Never commit real values.
+
+**Tests.** Unit tests run on `node --test` (`bun run test`). Bun 1.3.14 crashes with SIGTRAP when a
+test loads `better-sqlite3` 13.0.3. The server and the e2e run on Bun and Node and are not affected.
+The e2e needs a fresh `OAUTH_DB`: `/reset` does not clear passkeys, so a reused DB breaks login.
+
+**Contract stub.** `scripts/cloud-stub.ts` serves fixed JSON on port 3411 for local walks.
+The app never starts it. The browser proof is `BASE=http://localhost:3410 node scripts/e2e-agc.mjs`.
+
 ## Layout
 
 ```
@@ -183,6 +219,7 @@ app/account             connected-apps page
 
 app/client/**           the third-party app, incl. two attack buttons
 scripts/e2e.mjs         49-check Playwright proof
+scripts/seed-dev.mjs    dev only: seeds six instances through the public cloud API (needs AS on 3410, cloud API on 3411, a fresh database)
 ```
 
 ### Gotchas found while building this

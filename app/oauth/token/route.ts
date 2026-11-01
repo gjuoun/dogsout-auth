@@ -74,7 +74,12 @@ async function codeGrant(form: Record<string, string>, client_id: string) {
 
   if (c.used) {
     // Replay = the code leaked. Nuke everything derived from it.
-    for (const [k, t] of db.refresh) if (t.user_id === c.user_id && t.client_id === c.client_id) t.revoked = true, db.refresh.set(k, t);
+    for (const [k, t] of db.refresh) {
+      if (t.user_id === c.user_id && t.client_id === c.client_id) {
+        t.revoked = true;
+        db.refresh.set(k, t);
+      }
+    }
     trace({ channel: "back", actor: "provider", method: "-", path: "/oauth/token",
       note: "CODE REPLAY DETECTED. Revoked every token derived from this grant." });
     return bad("invalid_grant", "Code already used — all derived tokens revoked");
@@ -108,7 +113,12 @@ async function refreshGrant(form: Record<string, string>, client_id: string) {
   if (t.revoked || db.revokedFamilies.has(t.family)) {
     // Rotation reuse detection: an already-rotated token came back => it was stolen.
     db.revokedFamilies.add(t.family);
-    for (const [k, x] of db.refresh) if (x.family === t.family) x.revoked = true, db.refresh.set(k, x);
+    for (const [k, x] of db.refresh) {
+      if (x.family === t.family) {
+        x.revoked = true;
+        db.refresh.set(k, x);
+      }
+    }
     trace({ channel: "back", actor: "provider", method: "-", path: "/oauth/token",
       note: "REFRESH REUSE DETECTED. Entire token family revoked.", detail: { family: t.family } });
     return bad("invalid_grant", "Refresh token reuse — family revoked");

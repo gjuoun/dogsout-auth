@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,10 +16,10 @@ export default async function RootLayout({
 	// Session-gated nav: before sign-in only the brand shows — login stays minimal.
 	const signedIn = Boolean((await cookies()).get("op_session"));
 	return (
-		<html lang="en">
+		<html lang="en" data-mode="dark" style={{ colorScheme: "dark" }}>
 			<body>
 				<nav className="nav">
-					<a href="/">🏛️ YourID</a>
+					<Link href="/">🏛️ YourID</Link>
 					{signedIn && (
 						<>
 							<a href="/client">🧩 Client app</a>

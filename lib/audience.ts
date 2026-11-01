@@ -2,11 +2,14 @@
 // one function — a second resource server registers here and nowhere else.
 
 export const DEFAULT_AUDIENCE = "notes-api";
+/** The secrets read API (GET /api/secrets/:key). Only tokens minted for this audience may read secrets. */
+export const SECRETS_AUDIENCE = "secrets-api";
 
 /** scope -> the resource server that scope grants access to. */
 const SCOPE_AUDIENCE: Record<string, string> = {
   "notes:read": "notes-api",
   "notes:write": "notes-api",
+  "secrets:read": "secrets-api",
 };
 
 /** Every audience a token may legitimately be minted for. */

@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   }
 
   // A client may only ask about its own tokens; anyone else's answers active:false.
-  const body = await introspectToken(form.token, auth.client.client_id);
+  const body = await introspectToken(form.token, auth.client);
   trace({ channel: "back", actor: "client", method: "POST", path: "/oauth/introspect",
     note: body.active
       ? "Token verified. Returning its claims — active:true."

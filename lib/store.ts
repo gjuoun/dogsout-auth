@@ -224,29 +224,46 @@ export function listClients(): Client[] {
   return rows.map(rowToClient);
 }
 
-/** Register an agent (machine client). The secret is returned ONCE — callers show it, never store it in the clear anywhere else. */
+/** Raised when a machine client name is already in the registry. Names are the instance ids, so they must be unique. */
+export class DuplicateName extends Error {
+  constructor(name: string) {
+    super(`client name already registered: ${name}`);
+    this.name = "DuplicateName";
+  }
+}
+
+/**
+ * Register an agent (machine client). The secret is returned ONCE — callers show it, never store it in the clear anywhere else.
+ * `owner_user_id` is optional: machine clients registered by the admin API have no human owner.
+ * The name check and the insert share one transaction, so two racing registrations cannot both pass.
+ */
 export function createAgent(opts: {
   name: string;
   redirect_uris: string[];
   scopes: string[];
-  owner_user_id: string;
+  owner_user_id?: string;
 }): { client_id: string; client_secret: string } {
   const client_id = rid("agent");
   const client_secret = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, "");
-  getDb()
-    .prepare(
-      `INSERT INTO clients (client_id, client_secret, name, redirect_uris, scopes, kind, owner_user_id, created_at)
-       VALUES (?, ?, ?, ?, ?, 'agent', ?, ?)`,
-    )
-    .run(
-      client_id,
-      client_secret,
-      opts.name,
-      JSON.stringify(opts.redirect_uris),
-      JSON.stringify(opts.scopes),
-      opts.owner_user_id,
-      Date.now(),
-    );
+  const sql = getDb();
+  sql.transaction(() => {
+    const taken = sql.prepare("SELECT 1 FROM clients WHERE name = ?").get(opts.name);
+    if (taken) throw new DuplicateName(opts.name);
+    sql
+      .prepare(
+        `INSERT INTO clients (client_id, client_secret, name, redirect_uris, scopes, kind, owner_user_id, created_at)
+         VALUES (?, ?, ?, ?, ?, 'agent', ?, ?)`,
+      )
+      .run(
+        client_id,
+        client_secret,
+        opts.name,
+        JSON.stringify(opts.redirect_uris),
+        JSON.stringify(opts.scopes),
+        opts.owner_user_id ?? null,
+        Date.now(),
+      );
+  })();
   return { client_id, client_secret };
 }
 
