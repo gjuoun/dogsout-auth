@@ -30,7 +30,7 @@ export default async function Panel({ searchParams }: { searchParams: Promise<Re
   const selected = !error && selectedId ? await loadSelected(selectedId) : null;
 
   return (
-    <div className="bf mx-auto grid max-w-[1200px] gap-4">
+    <div className="bf mx-auto flex max-w-[1200px] flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3 text-sm">
           <span className="font-medium">Instances</span>
@@ -49,7 +49,7 @@ export default async function Panel({ searchParams }: { searchParams: Promise<Re
         </Card>
       )}
       {!error && rows.length > 0 && (
-        <div className="grid h-[calc(100vh-190px)] min-h-[560px] gap-4 lg:grid-cols-[400px_1fr]">
+        <div className="grid h-[calc(100vh-190px)] min-h-[560px] w-full gap-4 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
           <Card size="sm" className="min-h-0 gap-0 overflow-hidden p-0">
             <div className="min-h-0 flex-1 overflow-y-auto">
               <table className="plist w-full">
@@ -69,8 +69,8 @@ export default async function Panel({ searchParams }: { searchParams: Promise<Re
                         data-selected={on ? "true" : undefined}
                         className={on ? "bg-[color-mix(in_oklab,var(--primary)_22%,var(--card))] shadow-[inset_3px_0_0_var(--primary)]" : ""}
                       >
-                        <td className="id px-4">
-                          <Link href={`/panel?selected=${encodeURIComponent(r.id)}`} className="block py-0.5 hover:underline underline-offset-4">{r.id}</Link>
+                        <td className="id min-w-0 px-4">
+                          <Link href={`/panel?selected=${encodeURIComponent(r.id)}`} title={r.id} className="block min-w-0 truncate py-0.5 hover:underline underline-offset-4">{r.id}</Link>
                         </td>
                         <td><StatusBadge status={r.status} /></td>
                         <td className="time pr-4 text-right text-xs text-muted-foreground">{formatTime(r.created_at)}</td>

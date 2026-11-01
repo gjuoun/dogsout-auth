@@ -37,7 +37,7 @@ export default async function PanelDetail({ params }: { params: Promise<{ id: st
   if (!inst) notFound();
 
   return (
-    <div className="bf mx-auto grid max-w-[1200px] gap-4">
+    <div className="bf mx-auto flex max-w-[1200px] flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
         <span className="font-mono text-sm font-medium">{inst.id}</span>
         <StatusBadge status={inst.status} />
