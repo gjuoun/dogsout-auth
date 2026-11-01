@@ -98,6 +98,11 @@ curl -u "<client_id>:<client_secret>" -d "token=<access_token>" \
   http://localhost:3000/oauth/introspect
 ```
 
+Who may introspect whose token: a client always sees its own tokens. A client registered with the
+`as:introspect` scope sees any token, which is how the cloud API verifies spawn tokens. Every other
+caller gets `{"active": false}` for someone else's token.
+`as:introspect` is read from the client's registry row, not from its token, so a caller cannot grant itself the scope.
+The cloud API holds its own service client secret. This repo does not store it.
 Introspection only answers about the caller's **own** tokens. A signed token keeps verifying
 until it expires, so revocation is an **exception list**: `POST /oauth/revoke` records the
 token's `jti` (or kills a refresh token and its whole family) and introspection starts

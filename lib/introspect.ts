@@ -4,7 +4,10 @@
 
 import { jwtVerify, createLocalJWKSet, type JWTPayload } from "jose";
 import { keys, ISSUER } from "@/lib/keys";
-import { db, findUser } from "@/lib/store";
+import { db, findUser, type Client } from "@/lib/store";
+
+/** Scope that lets a registered service client introspect any token (the cloud API holds one). */
+export const INTROSPECT_SCOPE = "as:introspect";
 
 export type Introspection =
   | { active: false }
@@ -32,15 +35,18 @@ export function isTokenRevoked(jti: string): boolean {
 }
 
 /**
- * Who may ask about whose token. Equality today: the only introspection clients
- * are the clients themselves. A real resource-server client (one that did not
- * mint the token) widens this — it is the single place that rule lives.
+ * Who may ask about whose token. A client may always introspect its own tokens.
+ * A client registered with the as:introspect scope may introspect any token; that
+ * is the service client the cloud API uses to verify spawn tokens. The scope is read
+ * from the registry row, never from the caller's token, so a caller cannot grant
+ * itself the right.
  */
-export function mayIntrospect(callerClientId: string, tokenClientId: string): boolean {
-  return callerClientId === tokenClientId;
+export function mayIntrospect(caller: Pick<Client, "client_id" | "scopes">, tokenClientId: string): boolean {
+  if (caller.client_id === tokenClientId) return true;
+  return caller.scopes.includes(INTROSPECT_SCOPE);
 }
 
-export async function introspectToken(token: string, callerClientId: string): Promise<Introspection> {
+export async function introspectToken(token: string, caller: Pick<Client, "client_id" | "scopes">): Promise<Introspection> {
   const { publicJwk } = await keys;
   let payload: JWTPayload;
   try {
@@ -55,7 +61,7 @@ export async function introspectToken(token: string, callerClientId: string): Pr
   const client_id = String(payload.client_id ?? "");
   if (!jti || !client_id) return { active: false };
   if (isTokenRevoked(jti)) return { active: false };
-  if (!mayIntrospect(callerClientId, client_id)) return { active: false };
+  if (!mayIntrospect(caller, client_id)) return { active: false };
 
   const sub = String(payload.sub ?? "");
   const out: Introspection = {
