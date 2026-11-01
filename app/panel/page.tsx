@@ -4,7 +4,7 @@ import Link from "next/link";
 import { db } from "@/lib/store";
 import { cloudConfigFromEnv, getInstance, listInstances, CloudUnavailable } from "@/lib/cloud";
 import { formatTime } from "@/lib/format";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/instance/status";
 import { PanelDetail } from "@/components/instance/panel-detail";
@@ -52,12 +52,17 @@ export default async function Panel({ searchParams }: { searchParams: Promise<Re
         <div className="grid h-[calc(100vh-190px)] min-h-[560px] w-full gap-4 lg:grid-cols-[minmax(0,400px)_minmax(0,1fr)]">
           <Card size="sm" className="min-h-0 gap-0 overflow-hidden p-0">
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <table className="plist w-full">
+              <table className="plist w-full table-fixed">
+                <colgroup>
+                  <col />
+                  <col className="w-[88px]" />
+                  <col className="w-[120px]" />
+                </colgroup>
                 <thead className="sticky top-0 z-10 border-b border-border bg-card">
                   <tr>
-                    <th className="px-4">Instance</th>
-                    <th>Status</th>
-                    <th className="pr-4 text-right">Created</th>
+                    <th className="min-w-0 px-4">Instance</th>
+                    <th className="whitespace-nowrap">Status</th>
+                    <th className="whitespace-nowrap pr-4 text-right">Created</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -73,7 +78,7 @@ export default async function Panel({ searchParams }: { searchParams: Promise<Re
                           <Link href={`/panel?selected=${encodeURIComponent(r.id)}`} title={r.id} className="block min-w-0 truncate py-0.5 hover:underline underline-offset-4">{r.id}</Link>
                         </td>
                         <td><StatusBadge status={r.status} /></td>
-                        <td className="time pr-4 text-right text-xs text-muted-foreground">{formatTime(r.created_at)}</td>
+                        <td className="time whitespace-nowrap pr-4 text-right text-xs text-muted-foreground">{formatTime(r.created_at)}</td>
                       </tr>
                     );
                   })}
