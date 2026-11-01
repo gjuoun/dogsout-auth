@@ -3,6 +3,7 @@ import type { Instance } from "./data";
 export type Dir = "v1" | "v2" | "v3";
 export type Screen = "order" | "result" | "panel" | "detail";
 export type Mode = "light" | "dark";
+export type Nav = "a" | "b" | "c" | "none";
 
 export type MockState = {
   dir: Dir;
@@ -10,6 +11,7 @@ export type MockState = {
   id: string;
   mode: Mode;
   empty: boolean;
+  nav: Nav;
 };
 
 export type Go = (patch: Partial<MockState>) => void;
@@ -37,6 +39,7 @@ export function parseHash(hash: string): MockState {
     id: parts[2] ?? "",
     mode: q.get("mode") === "light" ? "light" : "dark",
     empty: q.get("empty") === "1",
+    nav: (["a", "b", "c", "none"] as const).find((n) => n === q.get("nav")) ?? "a",
   };
 }
 
@@ -44,5 +47,6 @@ export function toHash(s: MockState): string {
   const path = [s.dir, s.screen, ...(s.id ? [s.id] : [])].map((p) => encodeURIComponent(p)).join("/");
   const q = new URLSearchParams({ mode: s.mode });
   if (s.empty) q.set("empty", "1");
+  if (s.nav !== "a") q.set("nav", s.nav);
   return "#/" + path + "?" + q.toString();
 }

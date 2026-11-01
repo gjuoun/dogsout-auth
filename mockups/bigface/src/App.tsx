@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { viewHref } from "./lib/link";
 import { Button } from "@gjuoun/bigface-shadcn-ui/components/ui/button";
 import { Separator } from "@gjuoun/bigface-shadcn-ui/components/ui/separator";
 import { INSTANCES, DEFAULT_RESULT_ID, DEFAULT_SELECTED_ID, type Instance } from "./lib/data";
@@ -7,6 +8,7 @@ import { OrderScreen } from "./screens/order";
 import { ResultScreen } from "./screens/result";
 import { PanelScreen } from "./screens/panel";
 import { DetailScreen } from "./screens/detail";
+import { NavA, NavB, NavC } from "./nav/NavChrome";
 
 const DIRS: { id: Dir; label: string }[] = [
   { id: "v2", label: "V2 仪表盘密度" },
@@ -52,6 +54,25 @@ export function App() {
     panel: <PanelScreen {...screenProps} />,
     detail: <DetailScreen {...screenProps} />,
   };
+
+  const primary = (
+    <a href={viewHref(s, "order")} className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground">New instance</a>
+  );
+  const navHref = (id: string) => (id === "instances" ? viewHref(s, "panel") : id === "account" ? viewHref(s, "panel") : "#");
+  // Every screen is an instance screen in this round, so Instances is the active nav item.
+  const activeNav = "instances" as const;
+
+  if (s.nav !== "none") {
+    const page = (
+      <main className="mx-auto max-w-[1200px] px-6 py-8 2xl:max-w-[1600px]" data-dir={s.dir} data-screen={s.screen} data-nav={s.nav}>
+        {body[s.screen]}
+      </main>
+    );
+    const control = <NavControl s={s} go={go} />;
+    if (s.nav === "a") return <div className="min-h-screen bg-background text-foreground"><NavA active={activeNav} href={navHref} primary={primary} />{page}{control}</div>;
+    if (s.nav === "b") return <div className="min-h-screen bg-background text-foreground"><NavB active={activeNav} href={navHref} primary={primary} />{page}{control}</div>;
+    return <div className="min-h-screen bg-background text-foreground"><NavC active={activeNav} href={navHref} primary={primary}><main className="px-6 py-8" data-dir={s.dir} data-screen={s.screen} data-nav="c">{body[s.screen]}</main></NavC>{control}</div>;
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -120,6 +141,20 @@ function Segment<T extends string>({
           </Button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function NavControl({ s, go }: { s: MockState; go: (p: Partial<MockState>) => void }) {
+  return (
+    <div className="mx-auto mt-8 flex max-w-[1200px] items-center gap-3 border-t border-border px-6 py-4 text-xs text-muted-foreground">
+      <span className="uppercase tracking-wide">nav</span>
+      {(["a", "b", "c"] as const).map((n) => (
+        <Button key={n} size="sm" variant={s.nav === n ? "default" : "ghost"} aria-pressed={s.nav === n} onClick={() => go({ nav: n })}>
+          {n.toUpperCase()}
+        </Button>
+      ))}
+      <Button size="sm" variant={s.nav === "none" ? "default" : "ghost"} aria-pressed={s.nav === "none"} onClick={() => go({ nav: "none" })}>original mock</Button>
     </div>
   );
 }
