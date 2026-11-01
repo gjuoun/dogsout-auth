@@ -12,7 +12,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // Design reference, not app code (JW-337): kept out of the app's lint scope.
+    // Design reference, not app code: kept out of the app's lint scope.
     "mockups/**",
   ]),
 ]);

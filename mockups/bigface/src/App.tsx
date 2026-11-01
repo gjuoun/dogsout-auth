@@ -58,7 +58,7 @@ export function App() {
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-[1200px] flex-wrap items-center gap-x-6 gap-y-3 px-6 py-3 2xl:max-w-[1600px]">
           <div className="text-sm font-semibold">
-            🏛️ YourID <span className="text-muted-foreground">· JW-337 bigface mock</span>
+            🏛️ YourID <span className="text-muted-foreground">· bigface mock</span>
           </div>
           <Segment label="direction" value={s.dir} options={DIRS} onPick={(dir) => go({ dir })} />
           <Segment label="screen" value={s.screen} options={SCREENS} onPick={(screen) => go({ screen })} />
