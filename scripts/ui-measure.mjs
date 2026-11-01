@@ -1,0 +1,26 @@
+// Measures the layout points the UI round cares about, at 1280px. Prints one line per check.
+import { chromium } from "playwright";
+const B = (process.env.BASE ?? "http://localhost:3410").replace(/\/$/, "");
+const browser = await chromium.launch({ args: [`--unsafely-treat-insecure-origin-as-secure=${B}`] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+const cdp = await page.context().newCDPSession(page);
+await cdp.send("WebAuthn.enable");
+await cdp.send("WebAuthn.addVirtualAuthenticator", { options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
+await page.goto(B + "/client");
+await page.click("text=Sign in with YourID");
+await page.waitForURL("**/login**");
+await page.fill('input[name="username"]', "jun");
+await page.click('button[type="submit"]');
+await page.waitForURL("**/consent**");
+await page.click('button[value="allow"]');
+await page.waitForTimeout(500);
+await page.goto(B + "/order");
+const pageBox = await page.locator('.page').boundingBox();
+const cardBox = await page.locator('.page > .card').boundingBox();
+console.log('order page: card left=' + Math.round(cardBox.x) + ' right-margin=' + Math.round(1280 - (cardBox.x + cardBox.width)) + ' width=' + Math.round(cardBox.width));
+const ta = await page.locator('textarea[name=task]').evaluate((el) => { const s = getComputedStyle(el); return { bg: s.backgroundColor, color: s.color, border: s.borderTopColor }; });
+console.log('textarea: bg=' + ta.bg + ' color=' + ta.color + ' border=' + ta.border);
+const cb = await page.locator('label.check').boundingBox();
+const cbInput = await page.locator('label.check input').boundingBox();
+console.log('scope row: label x=' + Math.round(cb.x) + ' input x=' + Math.round(cbInput.x) + ' label height=' + Math.round(cb.height));
+await browser.close();
