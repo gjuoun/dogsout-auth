@@ -3,9 +3,15 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/store";
 import { cloudConfigFromEnv, getInstance, CloudUnavailable } from "@/lib/cloud";
-import { formatTime, statusClass } from "@/lib/format";
+import { formatTime } from "@/lib/format";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { MetaChip, StatusBadge } from "@/components/instance/status";
+import { Timeline } from "@/components/instance/timeline";
+import { SessionLog } from "@/components/instance/session-log";
 
-// Timeline of one instance, newest event first, with the meta chips and the session log slot.
+// One instance: the full timeline on the left, the session log and the meta chips on the right.
+// The columns top-align; the timeline card is as tall as its events, nothing more.
 export default async function PanelDetail({ params }: { params: Promise<{ id: string }> }) {
   const sid = (await cookies()).get("op_session")?.value;
   const userId = sid ? db.sessions.get(sid) : undefined;
@@ -18,50 +24,47 @@ export default async function PanelDetail({ params }: { params: Promise<{ id: st
   } catch (err) {
     const msg = err instanceof CloudUnavailable ? err.message : "could not load the instance";
     return (
-      <div className="page">
-        <div className="card">
-          <p className="err">{msg}</p>
-          <Link href="/panel">Back to panel</Link>
-        </div>
+      <div className="bf mx-auto max-w-[1000px]">
+        <Card>
+          <CardContent className="grid gap-3">
+            <p role="alert" className="text-sm text-destructive">{msg}</p>
+            <Button variant="outline" className="w-fit" asChild><Link href="/panel">Back to panel</Link></Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
   if (!inst) notFound();
-  const events = [...(inst.events ?? [])].sort((a, b) => (a.ts < b.ts ? 1 : -1));
-  const meta: [string, string | undefined][] = [
-    ["repo", inst.repo],
-    ["worktree", inst.worktree],
-    ["branch", inst.branch],
-  ];
 
   return (
-    <div className="page">
-      <div className="card">
-        <div className="brand">🏛️ YourID — {inst.id}</div>
-        <span className={`status ${statusClass(inst.status)}`}>{inst.status}</span>
-        <span className="muted" style={{ marginLeft: 10 }}>created {formatTime(inst.created_at)}</span>
-        <div className="chips">
-          {meta.map(([k, v]) => (
-            <span key={k} className={v ? "chip" : "chip empty"}>{k}: {v ?? "—"}</span>
-          ))}
+    <div className="bf mx-auto grid max-w-[1200px] gap-4">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
+        <span className="font-mono text-sm font-medium">{inst.id}</span>
+        <StatusBadge status={inst.status} />
+        <span className="text-xs text-muted-foreground">created {formatTime(inst.created_at)}</span>
+        <div className="ml-auto flex flex-wrap gap-2">
+          <MetaChip k="repo" v={inst.repo} />
+          <MetaChip k="worktree" v={inst.worktree} />
+          <MetaChip k="branch" v={inst.branch} />
         </div>
-        <h3>Timeline</h3>
-        {events.length === 0 && <p className="muted">No events yet.</p>}
-        <ol className="tl">
-          {events.map((e, i) => (
-            <li key={i}>
-              <div className="evhead">
-                <span className="evtype">{e.type}</span>
-                <span className="evtime">{formatTime(e.ts)}</span>
-              </div>
-              <div className="evmsg">{e.message}</div>
-            </li>
-          ))}
-        </ol>
-        <div className="slot">
-          Session log: {inst.session_log_path ? <code>{inst.session_log_path}</code> : "未产生"}
+      </div>
+      <div className="grid items-start gap-4 lg:grid-cols-[1fr_320px]">
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle className="text-sm">Timeline</CardTitle>
+            <CardDescription>{(inst.events ?? []).length} events, newest first</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Timeline events={inst.events ?? []} />
+          </CardContent>
+        </Card>
+        <div className="grid content-start gap-4">
+          <Card size="sm">
+            <CardHeader><CardTitle className="text-sm">Session log</CardTitle></CardHeader>
+            <CardContent><SessionLog path={inst.session_log_path} /></CardContent>
+          </Card>
+          <Button variant="outline" asChild className="w-fit"><Link href="/panel">Back to panel</Link></Button>
         </div>
-        <div className="action"><Link className="btn" href="/panel">Back to panel</Link></div>
       </div>
     </div>
   );
